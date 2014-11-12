@@ -1,0 +1,26 @@
+SET SERVEROUTPUT ON
+-- Script to create ODS tablespace if it doesn't exist
+DECLARE
+v_exists number;
+BEGIN
+    select count(1) into v_exists from dba_tablespaces
+    where tablespace_name = 'ODS';
+    IF v_exists > 0
+    THEN
+      dbms_output.put_line('ODS tablespace exists');
+    ELSE
+      dbms_output.put_line('ODS tablespace does not exist, creating...'); 
+      execute immediate 'create tablespace ODS datafile ''/u01/app/oracle/oradata/XE/ODS_TS_01.dbf''
+      size 200M autoextend on next 10M maxsize 4000M';
+    END IF;
+END;
+/
+-- Drop existing user if they exist
+DROP USER ods CASCADE;
+DROP USER ods_trackandtrace CASCADE;
+-- Create new ods and ods_trackandtrace users
+create user ods_trackandtrace identified by password default tablespace ODS temporary tablespace TEMP quota unlimited on ODS;
+create user ods identified by password default tablespace ODS temporary tablespace TEMP quota unlimited on ODS;
+grant connect,resource,dba to ods_trackandtrace;
+grant connect,resource,dba to ods;
+commit;

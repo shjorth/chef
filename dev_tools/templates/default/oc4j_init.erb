@@ -1,0 +1,73 @@
+#!/bin/sh
+#
+# rc file for OC4J
+#
+# chkconfig: 345 96 10
+# description: OC4J init.d script
+#
+### BEGIN INIT INFO
+# Provides: oc4j
+# Required-Start: $network
+# Required-Stop: $network
+# Default-Start: 3 4 5
+# Default-Stop: 0 1 2 6
+# Short-Description: OC4J 
+# Description: OC4J init.d script
+
+### END INIT INFO
+
+# Define some variables
+APP=oc4j
+# Name of the user to run as
+USER=root
+# Location of application's home directory
+BASE=<%= node['dev_tools']['oc4j']['home'] %>
+# Location of Java JDK
+export JAVA_HOME=<%= node['dev_tools']['oc4j']['java_home'] %>
+# OC4J JVM arguments
+OC4J_TEMP=/var/tmp
+JVM_ARGS="-Xdebug -Xrunjdwp:server=y,transport=dt_socket,address=8000,suspend=n -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.port=8686 -Dtol.http.instrument=false -Doc4j.autoUnpackLockCount=-1 -Doc4j.userThreads=true -XX:MaxPermSize=512M -Xmx1G -Djava.awt.headless=true -Dstdstream.filesize=50 -server -Dpod.download.directory=${OC4J_TEMP}/dev_tonl/podImages -Dprint.download.directory=${OC4J_TEMP}/dev_tonl/podImages -Dinvoice.image.download.directory=${OC4J_TEMP}/dev_tonl/invoiceImages -Dinvoice.pdf.download.directory=${OC4J_TEMP}/dev_tonl/invoicePDFs -Dinvoice.data.download.directory=${OC4J_TEMP}/dev_tonl/invoiceData -Dtol.report.url=http://localhost:8888/reports -Drest.api.url=http://localhost:8888/v1"
+OC4J_JAR=${BASE}/j2ee/home/oc4j.jar
+
+oc4j_pid() {
+     echo `ps -fC java | grep ${OC4J_JAR} | grep -v grep | awk '{ print $2 }'`
+}
+
+case "$1" in
+  # Start command
+  start)
+    PID=$(oc4j_pid)
+    if [ -n "$PID" ]
+    then
+          echo "$APP is already running, PID: $PID"
+    else
+          echo "Starting $APP ..."
+          /bin/su -m $USER -c "mkdir -p ${BASE}/logs ${OC4J_TEMP}/dev_tonl/podImages ${OC4J_TEMP}/dev_tonl/invoiceImages ${OC4J_TEMP}/dev_tonl/invoicePDFs ${OC4J_TEMP}/dev_tonl/invoiceData"
+          /bin/su -m $USER -c "cd ${BASE}/logs && nohup ${JAVA_HOME}/bin/java ${JVM_ARGS} -jar ${OC4J_JAR} 2>&1 > ${APP}.out &"
+    fi
+    ;;
+  # Stop command
+  stop)
+    PID=$(oc4j_pid)
+    if [ -n "$PID" ]
+    then
+          echo "Stopping $APP at PID ${PID} ..."
+          /bin/su -m $USER -c "kill ${PID}"
+          sleep 5;
+    else
+          echo "$APP isn't running"
+    fi
+    ;;
+   # Restart command
+   restart)
+        $0 stop
+        sleep 15
+        $0 start
+        ;;
+  *)
+    echo "Usage: /etc/init.d/$APP {start|restart|stop}"
+    exit 1
+    ;;
+esac
+
+exit 0
